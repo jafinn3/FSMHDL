@@ -21,16 +21,22 @@ class TokenID(Enum):
     SYMBOL_RIGHT_PAREN = auto()     # )
     SYMBOL_COMMA = auto()           # ,
     SYMBOL_STAR = auto()            # *
+    SYMBOL_COMMENT = auto()         # //
+    SYMBOL_MULTILINE_START = auto() # /*
+    SYMBOL_MULTILINE_END = auto()   # */
 
     # words
     KEYWORD_BEGIN = auto()          # begin
     KEYWORD_END = auto()            # end
     KEYWORD_GENERAL = auto()        # \$[a-zA-Z][a-zA-Z0-9_]*
     VARIABLE_OR_STATE = auto()      # [a-zA-Z][a-zA-Z0-9_]
+    COMMENT = auto()                # // <w/e> or /* <we> */
 
 
 
-
+######################################################################################################################
+# TOKEN STRUCT STUFF
+######################################################################################################################
 
 class LineInfo(object):
     """
@@ -47,6 +53,9 @@ class LineInfo(object):
         self.line_start = line_start
         self.line_end = line_end
 
+    def __repr__(self):
+        return f"[LineInfo - line {self.line_number}:{self.line_start}-{self.line_end}]"
+
 class FloatingToken(object):
     """
     A string with a defined meaning, given by the string ID. Unlike Tokens, FloatingTokens do not have line information
@@ -56,6 +65,8 @@ class FloatingToken(object):
         self.token_id = token_id
         self.value = value
 
+    def __repr__(self):
+        return f"[FloatingToken - id {self.token_id}, value \"{self.value}\"]"
 
 class Token(object):
     def __init__(self, token: FloatingToken, line_info: LineInfo):
@@ -69,50 +80,12 @@ class Token(object):
         self.token = token
         self.line_info = line_info
 
+    def __repr__(self):
+        return f"{self.token.token_id}"
 
-class TokenMatcher(object):
-    """
-    A base class that will parse an input stream into a token.
-    """
-    def match_token(self, stream: str) -> Optional[Tuple[FloatingToken, int]]:
-        """
-        Gets a token from an input stream.
-
-        :param stream: The stream to parse
-        :param line_number: The line number that we are currently on.
-        :param line_start: The current position in the line.
-        :return: Either None, or a tuple containing the found token and its length in the input stream.
-        """
-        pass
-
-
-class FloatingTokenizer(object):
-    """
-    A wrapper for a list of matchers that will parse an input stream into tokens. This does not give line information.
-    """
-    matchers: List[TokenMatcher] = []
-
-    def add_matcher(self, matcher: TokenMatcher) -> None:
-        """
-        Adds a TokenMatcher to the list of matchers that the tokenizer uses.
-
-        :param matcher: The TokenMatcher to add.
-        """
-        self.matchers.append(matcher)
-
-    def match_token(self, stream: str) -> Optional[Tuple[FloatingToken, int]]:
-        """
-        Matches a token from an input stream.
-
-        :param stream: The stream to match against.
-        :return: Either None or the
-        """
-        for i in self.matchers:
-            match = i.match_token(stream)
-            if match:
-                return match
-        return None
-
+######################################################################################################################
+# EXCEPTIONS
+######################################################################################################################
 
 class BadTokenException(Exception):
     """Raised when a matching token did not exist in the given tokenizer."""
@@ -127,20 +100,115 @@ class BadTokenException(Exception):
         self.line_position = line_position
         self.line = line
 
+    def __repr__(self):
+        return f'Could not find matching token for substring "{self.line[self.line_position:]}" ' + \
+               f'({self.line_number}:{self.line_position})'
+
+    def __str__(self):
+        return self.__repr__()
+
+######################################################################################################################
+# TOKENIZER STUFF
+######################################################################################################################
+
+class TokenMatcher(object):
+    """
+    A base class that will parse an input stream into a token.
+    """
+
+    def match_token(self, stream: str) -> Tuple[Optional[FloatingToken], int]:
+        """
+        Gets a token from an input stream.
+
+        :param stream: The stream to parse
+        :param line_number: The line number that we are currently on.
+        :param line_start: The current position in the line.
+        :return: Either None, or a tuple containing the found token and its length in the input stream.
+        """
+        pass
+
+    def end_matching(self) -> None:
+        """
+        Gives opportunity for TokenMatchers to finish execution when the stream ends.
+        For example, if CommentMatcher does not find a matching '*/', it should error here.
+        """
+        return None
+
+class FloatingTokenizer(object):
+    """
+    A wrapper for a list of matchers that will parse an input stream into tokens. This does not give line information.
+    """
+    matchers: List[TokenMatcher] = []
+
+    def __repr__(self):
+        print(self.matchers)
+
+    def add_matcher(self, matcher: TokenMatcher) -> None:
+        """
+        Adds a TokenMatcher to the list of matchers that the tokenizer uses.
+
+        :param matcher: The TokenMatcher to add.
+        """
+        self.matchers.append(matcher)
+
+    def match_token(self, stream: str) -> Tuple[Optional[FloatingToken], int]:
+        """
+        Matches a token from an input stream.
+
+        :param stream: The stream to match against.
+        :return: Either None or the
+        """
+        for i in self.matchers:
+            match = i.match_token(stream)
+            if match:
+                return match
+        return None
 
 class Tokenizer(object):
     tokenizer: FloatingTokenizer
 
     def __init__(self):
         self.tokenizer = FloatingTokenizer()
+        self.whitespace_matcher = re.compile(r"^\s*")
+
+    def __repr__(self):
+        print(self.tokenizer)
 
     def add_matcher(self, matcher: TokenMatcher) -> None:
         self.tokenizer.add_matcher(matcher)
 
     def match_tokens(self, stream: str) -> List[Token]:
         lines = stream.splitlines()
+
+        output = []
+
         for line_number, line in enumerate(lines):
-            pass #TODO
+            line_pos = 0
+            while line_pos < len(line):
+
+                # remove leading whitespace
+                whitespace_match = self.whitespace_matcher.match(line[line_pos:])
+                line_pos += whitespace_match.end(0)
+                if line_pos == len(line): break
+
+                token, width = self.tokenizer.match_token(line[line_pos:])
+                if not token:
+                    raise BadTokenException(line_number, line_pos, line)
+
+                # token found! populate line information
+                line_info = LineInfo(line_number, line_pos, line_pos + width)
+                line_pos += width
+                # append to list
+                output.append(Token(token, line_info))
+
+        
+
+
+        return output
+
+######################################################################################################################
+# SPECIAL TOKENMATCHERS
+######################################################################################################################
 
 class Symbol(object):
     """
@@ -156,6 +224,9 @@ class Symbol(object):
         """
         self.symbol = symbol
         self.token = token
+
+    def __repr__(self):
+        return f"({self.symbol}: {self.token.name})"
 
 class SymbolMatcher(TokenMatcher):
     """
@@ -184,6 +255,10 @@ class SymbolMatcher(TokenMatcher):
         """
         self.symbols.append(Symbol(symbol, token))
 
+
+    def __repr__(self):
+        print(self.symbols)
+
     def add_symbols(self, symbols: List[Symbol]) -> None:
         """
         Adds a list of symbols to match.
@@ -192,7 +267,7 @@ class SymbolMatcher(TokenMatcher):
         """
         self.symbols.extend(symbols)
 
-    def match_token(self, stream: str) -> Optional[Tuple[FloatingToken, int]]:
+    def match_token(self, stream: str) -> Tuple[Optional[FloatingToken], int]:
         """
         Matches the first symbol in the list against a character stream.
 
@@ -203,3 +278,7 @@ class SymbolMatcher(TokenMatcher):
         for symbol in self.symbols:
             if stream.startswith(symbol.symbol):
                 return FloatingToken(symbol.token, symbol.symbol), len(symbol.symbol)
+
+        # no matches
+        return None, -1
+
