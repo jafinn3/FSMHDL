@@ -2,41 +2,6 @@ from typing import List, Tuple, Optional
 from enum import Enum, auto
 import re
 
-<<<<<<< HEAD
-=======
-class TokenID(Enum):
-    """
-    An enum representing all valid token types.
-    """
-
-    # Symbols
-    SYMBOL_TERNARY_START = auto()   # ?
-    SYMBOL_COLON = auto()           # :
-    SYMBOL_NOT = auto()             # ! ~
-    SYMBOL_AND = auto()             # & &&
-    SYMBOL_OR = auto()              # | ||
-    SYMBOL_XOR = auto()             # ^ != !==
-    SYMBOL_XNOR = auto()            # ^~ ~^ == === <->
-    SYMBOL_ARROW = auto()           # ->
-    SYMBOL_SEMICOLON = auto()       # ;
-    SYMBOL_LEFT_PAREN = auto()      # (
-    SYMBOL_RIGHT_PAREN = auto()     # )
-    SYMBOL_COMMA = auto()           # ,
-    SYMBOL_STAR = auto()            # *
-    SYMBOL_COMMENT = auto()         # //
-    SYMBOL_MULTILINE_START = auto() # /*
-    SYMBOL_MULTILINE_END = auto()   # */
-
-    # words
-    KEYWORD_BEGIN = auto()          # begin
-    KEYWORD_END = auto()            # end
-    KEYWORD_GENERAL = auto()        # \$[a-zA-Z][a-zA-Z0-9_]*
-    VARIABLE_OR_STATE = auto()      # [a-zA-Z][a-zA-Z0-9_]
-    COMMENT = auto()                # // <w/e> or /* <we> */
-
-
-
->>>>>>> 2af73b72c13cc2f61777a579da7e9258eb98fe96
 ######################################################################################################################
 # TOKEN STRUCT STUFF
 ######################################################################################################################
@@ -69,11 +34,7 @@ class FloatingToken(object):
         self.value = value
 
     def __repr__(self):
-<<<<<<< HEAD
         return f"[FloatingToken - id \"{self.token_id}\", value \"{self.value}\"]"
-=======
-        return f"[FloatingToken - id {self.token_id}, value \"{self.value}\"]"
->>>>>>> 2af73b72c13cc2f61777a579da7e9258eb98fe96
 
 class Token(object):
     def __init__(self, token: FloatingToken, line_info: LineInfo):
@@ -169,11 +130,7 @@ class FloatingTokenizer(object):
             match = i.match_token(stream)
             if match:
                 return match
-<<<<<<< HEAD
         return None, -1
-=======
-        return None
->>>>>>> 2af73b72c13cc2f61777a579da7e9258eb98fe96
 
 class Tokenizer(object):
     tokenizer: FloatingTokenizer
@@ -212,11 +169,7 @@ class Tokenizer(object):
                 # append to list
                 output.append(Token(token, line_info))
 
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> 2af73b72c13cc2f61777a579da7e9258eb98fe96
 
 
         return output
@@ -241,11 +194,7 @@ class Symbol(object):
         self.token = token
 
     def __repr__(self):
-<<<<<<< HEAD
         return f"({self.symbol}: {self.token})"
-=======
-        return f"({self.symbol}: {self.token.name})"
->>>>>>> 2af73b72c13cc2f61777a579da7e9258eb98fe96
 
 class SymbolMatcher(TokenMatcher):
     """
@@ -308,7 +257,6 @@ class SymbolMatcher(TokenMatcher):
         # no matches
         return None, -1
 
-<<<<<<< HEAD
 
 if __name__ == "__main__":
     symb_match = SymbolMatcher(""" ?   SYMB_TERNARY_START
@@ -334,5 +282,3 @@ if __name__ == "__main__":
                                    ,   SYMB_COMMA
                                    *   SYMB_STAR""")
 
-=======
->>>>>>> 2af73b72c13cc2f61777a579da7e9258eb98fe96
