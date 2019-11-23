@@ -49,7 +49,7 @@ class Token(object):
         self.line_info = line_info
 
     def __repr__(self):
-        return f"{self.token.token_id}"
+        return f"({self.token.token_id}, \"{self.token.value}\")"
 
 ######################################################################################################################
 # EXCEPTIONS
@@ -75,6 +75,18 @@ class BadTokenException(Exception):
     def __str__(self):
         return self.__repr__()
 
+class NoEndException(Exception):
+
+    def __init__(self, line_number: int, line_position: int):
+        self.line_number = line_number
+        self.line_position = line_position
+
+    def __repr__(self):
+        return f'Could not find matching end comment for comment at ({self.line_number}:{self.line_position})'
+
+    def __str__(self):
+        return self.__repr__()
+
 ######################################################################################################################
 # TOKENIZER STUFF
 ######################################################################################################################
@@ -95,7 +107,7 @@ class TokenMatcher(object):
         """
         pass
 
-    def end_matching(self) -> None:
+    def end_matching(self, tokens: List[Token]) -> None:
         """
         Gives opportunity for TokenMatchers to finish execution when the stream ends.
         For example, if CommentMatcher does not find a matching '*/', it should error here.
@@ -109,7 +121,7 @@ class FloatingTokenizer(object):
     matchers: List[TokenMatcher] = []
 
     def __repr__(self):
-        print(self.matchers)
+        print([type(x) for x in self.matchers])
 
     def add_matcher(self, matcher: TokenMatcher) -> None:
         """
@@ -124,12 +136,12 @@ class FloatingTokenizer(object):
         Matches a token from an input stream.
 
         :param stream: The stream to match against.
-        :return: Either None or the
+        :return: Either None or the found token and its length
         """
         for i in self.matchers:
-            match = i.match_token(stream)
+            match, width = i.match_token(stream)
             if match:
-                return match
+                return match, width
         return None, -1
 
 class Tokenizer(object):
@@ -140,7 +152,7 @@ class Tokenizer(object):
         self.whitespace_matcher = re.compile(r"^\s*")
 
     def __repr__(self):
-        print(self.tokenizer)
+        return self.tokenizer.__repr__()
 
     def add_matcher(self, matcher: TokenMatcher) -> None:
         self.tokenizer.add_matcher(matcher)
@@ -158,8 +170,8 @@ class Tokenizer(object):
                 whitespace_match = self.whitespace_matcher.match(line[line_pos:])
                 line_pos += whitespace_match.end(0)
                 if line_pos == len(line): break
-
                 token, width = self.tokenizer.match_token(line[line_pos:])
+
                 if not token:
                     raise BadTokenException(line_number, line_pos, line)
 
@@ -258,27 +270,100 @@ class SymbolMatcher(TokenMatcher):
         return None, -1
 
 
-if __name__ == "__main__":
-    symb_match = SymbolMatcher(""" ?   SYMB_TERNARY_START
-                                   :   SYMB_COLON
-                                   !   SYMB_NOT
-                                   ~   SYMB_NOT
-                                   &   SYMB_AND
-                                   &&  SYMB_AND
-                                   |   SYMB_OR
-                                   ||  SYMB_OR
-                                   ^   SYMB_XOR
-                                   !=  SYMB_XOR
-                                   !== SYMB_XOR
-                                   ^~  SYMB_XNOR
-                                   ~^  SYMB_XNOR
-                                   ==  SYMB_XNOR
-                                   === SYMB_XNOR
-                                   <-> SYMB_XNOR
-                                   ->  SYMB_ARROW
-                                   ;   SYMB_SEMICOLON
-                                   (   SYMB_RIGHT_PAREN
-                                   )   SYMB_LEFT_PAREN
-                                   ,   SYMB_COMMA
-                                   *   SYMB_STAR""")
+class CommentMatcher(TokenMatcher):
+    is_multiline: bool
+    ml_start: Symbol
+    ml_end: Symbol
+    comment: Symbol
 
+    def __init__(self, multiline_start: Symbol, multiline_end: Symbol, comment: Symbol):
+        self.is_multiline = False
+        self.ml_start = multiline_start
+        self.ml_end = multiline_end
+        self.comment = comment
+
+    def match_token(self, stream: str) -> Tuple[Optional[FloatingToken], int]:
+        """
+        Matches a comment in the character stream. If we are currently in a multiline comment, marks the comment
+        as a character stream.
+
+        :param stream: The character stream to match against
+        :return: None if the stream doesn't match, or both the generated token and line position where the token ends.
+        """
+
+        # check end of multiline
+        if (self.is_multiline):
+            if (self.ml_end.symbol in stream):
+                comment_end = stream.index(self.ml_end.symbol)
+
+                self.is_multiline = False
+                return FloatingToken(self.ml_end.token), comment_end + 2
+            else:
+                return FloatingToken(self.ml_end.token), len(stream)
+
+        # check regular comment
+        if (stream.startswith(self.comment.symbol)):
+            return FloatingToken(self.comment.token), len(stream)
+
+        # check multiline comment
+        if (stream.startswith(self.ml_start.symbol)):
+            # check ending on same line
+            self.is_multiline = True
+            return FloatingToken(self.ml_start.token), len(self.ml_start.token)
+
+        return None, -1
+
+    def end_matching(self, tokens: List[Token]) -> None:
+        if (self.is_multiline):
+            for token in tokens[::-1]:
+                if token.token.token_id == self.ml_start.token:
+                    raise NoEndException(token.line_info.line_number, token.line_info.line_start)
+
+
+if __name__ == "__main__":
+
+
+    symb_match = SymbolMatcher(""" ?     SYMB_TERNARY_START
+                                   :     SYMB_COLON
+                                   !==   SYMB_XOR
+                                   !=    SYMB_XOR
+                                   !     SYMB_NOT
+                                   ~^    SYMB_XNOR
+                                   ~     SYMB_NOT
+                                   &&    SYMB_AND
+                                   &     SYMB_AND
+                                   ||    SYMB_OR
+                                   |     SYMB_OR
+                                   ^~    SYMB_XNOR
+                                   ^     SYMB_XOR
+                                   ===   SYMB_XNOR
+                                   ==    SYMB_XNOR
+                                   =     SYMB_EQ
+                                   <->   SYMB_XNOR
+                                   ->    SYMB_ARROW
+                                   ;     SYMB_SEMICOLON
+                                   (     SYMB_LEFT_PAREN
+                                   )     SYMB_RIGHT_PAREN
+                                   ,     SYMB_COMMA
+                                   *     SYMB_STAR
+                                   begin SYMB_BEGIN
+                                   end   SYMB_END""")
+    comm_match = CommentMatcher(Symbol("/*", "MULTILINE_START"),
+                                Symbol("*/", "MULTILINE_END"),
+                                Symbol("//", "SINGLE_COMMENT"))
+
+    tokenizer = Tokenizer()
+    tokenizer.add_matcher(comm_match)
+    tokenizer.add_matcher(symb_match)
+
+    print(tokenizer.match_tokens("""/* Eric Schneider */ ( && ) // test
+/* multiline comments ftw!!!!!!!!!
+this is the second line,
+this is the third line */ * , () ; -> <->=== // ( test ) : -> <-> ===
+() /*
+
+"""))
+
+#                    ^
+
+# KEYWORD="control" VARIABLE [SYMB_COMMA VARIABLE] SYMB_SEMICOLON
