@@ -1,0 +1,9 @@
+{
+  "var_or_default": "VARIABLE | KEYWORD(default)",
+  "variable_list": "VARIABLE {SYMB_COMMA VARIABLE} SYMB_SEMICOLON",
+  "states": "KEYWORD(states) variable_list",
+  "control": "KEYWORD(control) variable_list",
+  "status": "KEYWORD(status) variable_list",
+  "transition": "VARIABLE SYMB_ARROW VARIABLE SYMB_COLON logical_expression SYMB_SEMICOLON",
+  "transitions": "KEYWORD(transitions) SYMB_BEGIN transition {transition} SYMB_END"
+}

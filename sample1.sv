@@ -29,8 +29,6 @@ $fsm testFSM (
       read4, read5, read6;
 
 
-KEYWORD(="states") VARIABLE {SYMB_COMMA, VARIABLE} SYMB_SEMICOLON
-
   /* Define all possible transitions */
   $transitions begin
     init -> read1: in1 & in2;
