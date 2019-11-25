@@ -123,7 +123,7 @@ class Tokenizer(object):
         self.whitespace_matcher = re.compile(r"^\s*")
 
     def __repr__(self):
-        return self.matchers.__repr__()
+        return ", ".join([i.__repr__() for i in self.matchers])
 
     def add_matcher(self, matcher: TokenMatcher) -> None:
         self.matchers.append(matcher)
@@ -183,7 +183,7 @@ class Symbol(object):
         self.token = token
 
     def __repr__(self):
-        return f"({self.symbol}: {self.token})"
+        return f"(\"{self.symbol}\": {self.token})"
 
 class SymbolMatcher(TokenMatcher):
     """
@@ -192,7 +192,7 @@ class SymbolMatcher(TokenMatcher):
     """
     symbols: List[Symbol]
 
-    def __init__(self, symbols: str = None):
+    def __init__(self, symbols: List[Symbol] = None):
         """
         Creates a SymbolMatcher.
 
@@ -201,14 +201,7 @@ class SymbolMatcher(TokenMatcher):
         """
         self.symbols = []
         if symbols:
-            for line in symbols.splitlines():
-                # generate split
-                split = [x.strip() for x in line.strip().split(" ") if len(x) > 0 and not x.isspace()]
-
-                if len(split) != 2:
-                    raise ValueError(f'Couldn\'t find valid split for line "{line}"')
-
-                self.symbols.append(Symbol(split[0], split[1]))
+            self.symbols = symbols
 
     def add_symbol(self, symbol: str, token: str) -> None:
         """
@@ -352,8 +345,6 @@ if __name__ == "__main__":
     tokenizer.add_matcher(symb_match)
     tokenizer.add_matcher(key_match)
     tokenizer.add_matcher(var_match)
-
-    print(var_match.match_token("input  logic in"))
 
     tokens = tokenizer.match_tokens(r"""
 /* * * * * * * * * * *
