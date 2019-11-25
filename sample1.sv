@@ -9,7 +9,7 @@ module testModule (
   output logic out);
 
   logic in1, in2, in3, out1, out2;
-  testFSM fsm (.in1, .in2, .in3, .out1, .out2);
+  testFSM fsm (in1, in2, in3, out1, out2);
 
 endmodule: testModule
 
@@ -25,7 +25,11 @@ $fsm testFSM (
   output logic out1, out2);
 
   /* Declares all possible states in the FSM */
-  $states init, read1, read2, read3;
+  $states init, read1, read2, read3
+      read4, read5, read6;
+
+
+KEYWORD(="states") VARIABLE {SYMB_COMMA, VARIABLE} SYMB_SEMICOLON
 
   /* Define all possible transitions */
   $transitions begin

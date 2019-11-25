@@ -114,48 +114,19 @@ class TokenMatcher(object):
         """
         return None
 
-class FloatingTokenizer(object):
-    """
-    A wrapper for a list of matchers that will parse an input stream into tokens. This does not give line information.
-    """
-    matchers: List[TokenMatcher] = []
-
-    def __repr__(self):
-        print([type(x) for x in self.matchers])
-
-    def add_matcher(self, matcher: TokenMatcher) -> None:
-        """
-        Adds a TokenMatcher to the list of matchers that the tokenizer uses.
-
-        :param matcher: The TokenMatcher to add.
-        """
-        self.matchers.append(matcher)
-
-    def match_token(self, stream: str) -> Tuple[Optional[FloatingToken], int]:
-        """
-        Matches a token from an input stream.
-
-        :param stream: The stream to match against.
-        :return: Either None or the found token and its length
-        """
-        for i in self.matchers:
-            match, width = i.match_token(stream)
-            if match:
-                return match, width
-        return None, -1
 
 class Tokenizer(object):
-    tokenizer: FloatingTokenizer
+    matchers: List[TokenMatcher]
 
     def __init__(self):
-        self.tokenizer = FloatingTokenizer()
+        self.matchers = []
         self.whitespace_matcher = re.compile(r"^\s*")
 
     def __repr__(self):
-        return self.tokenizer.__repr__()
+        return self.matchers.__repr__()
 
     def add_matcher(self, matcher: TokenMatcher) -> None:
-        self.tokenizer.add_matcher(matcher)
+        self.matchers.append(matcher)
 
     def match_tokens(self, stream: str) -> List[Token]:
         lines = stream.splitlines()
@@ -170,7 +141,12 @@ class Tokenizer(object):
                 whitespace_match = self.whitespace_matcher.match(line[line_pos:])
                 line_pos += whitespace_match.end(0)
                 if line_pos == len(line): break
-                token, width = self.tokenizer.match_token(line[line_pos:])
+                token, width = None, -1
+
+                # find token
+                for i in self.matchers:
+                    token, width = i.match_token(line[line_pos:])
+                    if token: break
 
                 if not token:
                     raise BadTokenException(line_number, line_pos, line)
@@ -178,6 +154,7 @@ class Tokenizer(object):
                 # token found! populate line information
                 line_info = LineInfo(line_number, line_pos, line_pos + width)
                 line_pos += width
+
                 # append to list
                 output.append(Token(token, line_info))
 
@@ -320,6 +297,19 @@ class CommentMatcher(TokenMatcher):
                     raise NoEndException(token.line_info.line_number, token.line_info.line_start)
 
 
+class RegexMatcher(TokenMatcher):
+    token: str
+
+    def __init__(self, regex: str, token: str):
+        self.pattern = re.compile(regex)
+        self.token = token
+
+    def match_token(self, stream: str) -> Tuple[Optional[FloatingToken], int]:
+        match = self.pattern.match(stream)
+        if match:
+            return FloatingToken(self.token, match.group(1)), len(match.group(0))
+        return None, -1
+
 if __name__ == "__main__":
 
 
@@ -347,22 +337,78 @@ if __name__ == "__main__":
                                    ,     SYMB_COMMA
                                    *     SYMB_STAR
                                    begin SYMB_BEGIN
-                                   end   SYMB_END""")
+                                   end   SYMB_END
+                                   0     SYMB_ZERO
+                                   1     SYMB_ONE""")
     comm_match = CommentMatcher(Symbol("/*", "MULTILINE_START"),
                                 Symbol("*/", "MULTILINE_END"),
                                 Symbol("//", "SINGLE_COMMENT"))
 
+    key_match = RegexMatcher(r'\$([A-Za-z_][A-Za-z0-9_]*)\b', "KEYWORD")
+    var_match = RegexMatcher(r'([A-Za-z_][A-Za-z0-9_]*)\b', "VARIABLE")
+
     tokenizer = Tokenizer()
     tokenizer.add_matcher(comm_match)
     tokenizer.add_matcher(symb_match)
+    tokenizer.add_matcher(key_match)
+    tokenizer.add_matcher(var_match)
 
-    print(tokenizer.match_tokens("""/* Eric Schneider */ ( && ) // test
-/* multiline comments ftw!!!!!!!!!
-this is the second line,
-this is the third line */ * , () ; -> <->=== // ( test ) : -> <-> ===
-() /*
+    print(var_match.match_token("input  logic in"))
 
-"""))
+    tokens = tokenizer.match_tokens(r"""
+/* * * * * * * * * * *
+ *      testFSM      *
+ * * * * * * * * * * *
+ *
+ * Here is a sample module to highlight the syntax 
+ * of our FSM HDL.
+ */
+$fsm testFSM (
+  input  logic in1, in2, in3,
+  output logic out1, out2);
+
+  /* Declares all possible states in the FSM */
+  $states init, read1, read2, read3,
+        read4, read5, read6$;
+
+  /* Define all possible transitions */
+  $transitions begin
+    init -> read1: in1 & in2;
+    init -> read2: in1 & ~in2;
+    read1 -> read1: in3;
+    read1 -> init: in2 & ~in3;
+    read2 -> read3: in1 | in2 | in3;
+    read3 -> init: 1;
+  end
+
+  /* Define asserted outputs if the FSM is a moore machine. */
+  $moore_out begin
+    init: out1;
+    read1: out2;
+    read2: out2, out1;
+    read3: out2, out1;
+
+    /* Specify default output values (optional) */
+    default: begin
+      //out1 = 0;
+      //out2 = 0;
+      ~out1, ~out2;
+    end
+  end
+
+  /* Define asserted outputs if the FSM is a mealy machine */
+  $mealy_out begin
+    init -> read1: out1;
+    init -> read2: out2 = in1; // There might be a nicer way of doing something
+                               // like this. 
+    read1 -> read1: out1, out2;
+    read3 -> init: out1 = in1, out2;
+  end
+$endfsm""")
+
+    for token in tokens:
+        if token.token.token_id in ["MULTILINE_START", "MULTILINE_END", "SINGLE_COMMENT"]: continue
+        print(f"{token.token.token_id:15} {token.token.value}")
 
 #                    ^
 
