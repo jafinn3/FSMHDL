@@ -1,12 +1,20 @@
-// test
-
+/* * * * * * * * * * *
+ *      testFSM      *
+ * * * * * * * * * * *
+ *
+ * Here is a sample module to highlight the syntax
+ * of our FSM HDL.
+ */
 $fsm testFSM (
   input  logic in1, in2, in3,
   output logic out1, out2);
 
   /* Declares all possible states in the FSM */
-  $states init, read1, read2, read3,
-      read4, read5, read6;
+  $states init, read1, read2, read3;
+
+  /* Declares all control and status points */
+  $status in1, in2, in3; // $in is aliased to $status
+  $control out1, out2;   // $out is aliased to $control
 
 
   /* Define all possible transitions */
@@ -36,9 +44,16 @@ $fsm testFSM (
 
   /* Define asserted outputs if the FSM is a mealy machine */
   $mealy_out begin
+    init: out1 -> begin
+        read2: out1 = in1 & ~in2;
+    end
+    out1, out2;
+    read1: out1;
+    read2: out2 = in1;
+
     init -> read1: out1;
     init -> read2: out2 = in1; // There might be a nicer way of doing something
-                               // like this. 
+                               // like this.
     read1 -> read1: out1, out2;
     read3 -> init: out1 = in1, out2;
   end

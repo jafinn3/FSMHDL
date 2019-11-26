@@ -1,5 +1,4 @@
 from typing import List, Tuple, Optional
-from enum import Enum, auto
 import re
 
 ######################################################################################################################
@@ -141,14 +140,15 @@ class Tokenizer(object):
                 whitespace_match = self.whitespace_matcher.match(line[line_pos:])
                 line_pos += whitespace_match.end(0)
                 if line_pos == len(line): break
+
+
                 token, width = None, -1
 
                 # find token
                 for i in self.matchers:
                     token, width = i.match_token(line[line_pos:])
                     if token: break
-
-                if not token:
+                else:
                     raise BadTokenException(line_number, line_pos, line)
 
                 # token found! populate line information
@@ -157,6 +157,9 @@ class Tokenizer(object):
 
                 # append to list
                 output.append(Token(token, line_info))
+
+        for i in self.matchers:
+            i.end_matching(output)
 
 
 
@@ -302,105 +305,3 @@ class RegexMatcher(TokenMatcher):
         if match:
             return FloatingToken(self.token, match.group(1)), len(match.group(0))
         return None, -1
-
-if __name__ == "__main__":
-
-
-    symb_match = SymbolMatcher(""" ?     SYMB_TERNARY_START
-                                   :     SYMB_COLON
-                                   !==   SYMB_XOR
-                                   !=    SYMB_XOR
-                                   !     SYMB_NOT
-                                   ~^    SYMB_XNOR
-                                   ~     SYMB_NOT
-                                   &&    SYMB_AND
-                                   &     SYMB_AND
-                                   ||    SYMB_OR
-                                   |     SYMB_OR
-                                   ^~    SYMB_XNOR
-                                   ^     SYMB_XOR
-                                   ===   SYMB_XNOR
-                                   ==    SYMB_XNOR
-                                   =     SYMB_EQ
-                                   <->   SYMB_XNOR
-                                   ->    SYMB_ARROW
-                                   ;     SYMB_SEMICOLON
-                                   (     SYMB_LEFT_PAREN
-                                   )     SYMB_RIGHT_PAREN
-                                   ,     SYMB_COMMA
-                                   *     SYMB_STAR
-                                   begin SYMB_BEGIN
-                                   end   SYMB_END
-                                   0     SYMB_ZERO
-                                   1     SYMB_ONE""")
-    comm_match = CommentMatcher(Symbol("/*", "MULTILINE_START"),
-                                Symbol("*/", "MULTILINE_END"),
-                                Symbol("//", "SINGLE_COMMENT"))
-
-    key_match = RegexMatcher(r'\$([A-Za-z_][A-Za-z0-9_]*)\b', "KEYWORD")
-    var_match = RegexMatcher(r'([A-Za-z_][A-Za-z0-9_]*)\b', "VARIABLE")
-
-    tokenizer = Tokenizer()
-    tokenizer.add_matcher(comm_match)
-    tokenizer.add_matcher(symb_match)
-    tokenizer.add_matcher(key_match)
-    tokenizer.add_matcher(var_match)
-
-    tokens = tokenizer.match_tokens(r"""
-/* * * * * * * * * * *
- *      testFSM      *
- * * * * * * * * * * *
- *
- * Here is a sample module to highlight the syntax 
- * of our FSM HDL.
- */
-$fsm testFSM (
-  input  logic in1, in2, in3,
-  output logic out1, out2);
-
-  /* Declares all possible states in the FSM */
-  $states init, read1, read2, read3,
-        read4, read5, read6$;
-
-  /* Define all possible transitions */
-  $transitions begin
-    init -> read1: in1 & in2;
-    init -> read2: in1 & ~in2;
-    read1 -> read1: in3;
-    read1 -> init: in2 & ~in3;
-    read2 -> read3: in1 | in2 | in3;
-    read3 -> init: 1;
-  end
-
-  /* Define asserted outputs if the FSM is a moore machine. */
-  $moore_out begin
-    init: out1;
-    read1: out2;
-    read2: out2, out1;
-    read3: out2, out1;
-
-    /* Specify default output values (optional) */
-    default: begin
-      //out1 = 0;
-      //out2 = 0;
-      ~out1, ~out2;
-    end
-  end
-
-  /* Define asserted outputs if the FSM is a mealy machine */
-  $mealy_out begin
-    init -> read1: out1;
-    init -> read2: out2 = in1; // There might be a nicer way of doing something
-                               // like this. 
-    read1 -> read1: out1, out2;
-    read3 -> init: out1 = in1, out2;
-  end
-$endfsm""")
-
-    for token in tokens:
-        if token.token.token_id in ["MULTILINE_START", "MULTILINE_END", "SINGLE_COMMENT"]: continue
-        print(f"{token.token.token_id:15} {token.token.value}")
-
-#                    ^
-
-# KEYWORD="control" VARIABLE [SYMB_COMMA VARIABLE] SYMB_SEMICOLON

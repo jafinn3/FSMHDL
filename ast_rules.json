@@ -1,9 +1,19 @@
+[{
+  "variable_list": "VARIABLE {*SYMB_COMMA VARIABLE}",
+  "states": "*KEYWORD(states) variable_list *SYMB_SEMICOLON",
+  "status": "*KEYWORD(status) variable_list *SYMB_SEMICOLON",
+  "control": "*KEYWORD(control) variable_list *SYMB_SEMICOLON",
+  "transition": "VARIABLE SYMB_ARROW VARIABLE",
+  "state_transition": "transition SYMB_COLON logical_expression SYMB_SEMICOLON",
+  "transition_block": "KEYWORD(transitions) SYMB_BEGIN {state_transition} SYMB_END",
+  "moore_out": "SYMB_COLON variable_assignment {SYMB_COMMA, variable_assignment}",
+  "variable_assignment": "[SYMB_NOT] VARIABLE [SYMB_EQ logical_expression]",
+  "mealy_single_out": "VARIABLE SYMB_COLON variable_assignment {SYMB_COMMA, variable_assignment} SYMB_SEMICOLON",
+  "output": "VARIABLE [moore_out] [SYMB_ARROW mealy_single_out {mealy_single_out}] SYMB_SEMICOLON",
+  "default_output": "KEYWORD(default) moore_out SYMB_SEMICOLON",
+  "output_block": "KEYWORD(output) SYMB_BEGIN {output} SYMB_END"
+},
+
 {
-  "var_or_default": "VARIABLE | KEYWORD(default)",
-  "variable_list": "VARIABLE {SYMB_COMMA VARIABLE} SYMB_SEMICOLON",
-  "states": "KEYWORD(states) variable_list",
-  "control": "KEYWORD(control) variable_list",
-  "status": "KEYWORD(status) variable_list",
-  "transition": "VARIABLE SYMB_ARROW VARIABLE SYMB_COLON logical_expression SYMB_SEMICOLON",
-  "transitions": "KEYWORD(transitions) SYMB_BEGIN transition {transition} SYMB_END"
-}
+
+}]
