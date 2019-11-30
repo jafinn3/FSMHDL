@@ -1,6 +1,6 @@
 // test
 
-$fsm testFSM (
+testFSM (
   input  logic in1, in2, in3,
   output logic out1, out2);
 
@@ -11,7 +11,8 @@ $fsm testFSM (
 
   /* Define all possible transitions */
   $transitions begin
-    init -> read1: in1 & in2;
+    init ->
+      read1: in1 & in2;
     init -> read2: in1 & ~in2;
     read1 -> read1: in3;
     read1 -> init: in2 & ~in3;
@@ -42,4 +43,3 @@ $fsm testFSM (
     read1 -> read1: out1, out2;
     read3 -> init: out1 = in1, out2;
   end
-$endfsm

@@ -1,7 +1,7 @@
 import tokenizer as tkn
+import parser
 from tokenizer import Symbol
 import json
-import ast_gengen
 
 from typing import List, Dict
 
@@ -42,7 +42,12 @@ def main():
     #     print(f"{token.token.token_id:20} {token.token.value}")
 
     tokenizer = build_tokenizer("symbols.json")
-    print(ast_gengen.variable_list(tokenizer.match_tokens("$in1, $in2, in3, in4"), 0))
+    with open("sample1.sv", "r") as sample:
+        text = sample.read()
+        tokens = [x for x in tokenizer.match_tokens(text) if not x.token_id.startswith("COMMENT")]
 
+        print(tokens)
+
+        parser.parse_fsm(tokens)
 if __name__ == "__main__":
     main()

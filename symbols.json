@@ -125,6 +125,10 @@
   ],
   "regex": [
     {
+      "match": "(input|output)\\s*logic",
+      "token": "LOGIC_DECLARATOR"
+    },
+    {
       "match": "\\$([A-Za-z_][A-Za-z0-9_]*)\\b",
       "token": "KEYWORD"
     },

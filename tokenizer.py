@@ -44,11 +44,14 @@ class Token(object):
         :param line_info: Information about where that token is in the input stream.
         """
 
-        self.token = token
-        self.line_info = line_info
+        self.token_id = token.token_id
+        self.value = token.value
+        self.line_number = line_info.line_number
+        self.line_start = line_info.line_start
+        self.line_end = line_info.line_end
 
     def __repr__(self):
-        return f"({self.token.token_id}, \"{self.token.value}\")"
+        return f"({self.token_id}, \"{self.value}\")"
 
 ######################################################################################################################
 # EXCEPTIONS
@@ -289,8 +292,8 @@ class CommentMatcher(TokenMatcher):
     def end_matching(self, tokens: List[Token]) -> None:
         if (self.is_multiline):
             for token in tokens[::-1]:
-                if token.token.token_id == self.ml_start.token:
-                    raise NoEndException(token.line_info.line_number, token.line_info.line_start)
+                if token.token_id == self.ml_start.token:
+                    raise NoEndException(token.line_number, token.line_start)
 
 
 class RegexMatcher(TokenMatcher):
