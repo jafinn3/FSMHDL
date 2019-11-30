@@ -44,6 +44,9 @@ $fsm testFSM (
 
   /* Define asserted outputs if the FSM is a mealy machine */
   $mealy_out begin
+
+
+
     init: out1 -> begin
         read2: out1 = in1 & ~in2;
     end
